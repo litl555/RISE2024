@@ -1,4 +1,4 @@
 <launch>
-    <node pkg="apriltag_environment_mapper" type="map_and_save_controller.py" name="map_and_save" output="screen"></node>
-    <node pkg="apriltag_environment_mapper" type="controller_maker.py" name="controller_maker" output="screen"></node>
+    <node pkg="apriltag_mapping" type="map_and_save_controller.py" name="map_and_save" output="screen"></node>
+    <node pkg="apriltag_mapping" type="controller_maker.py" name="controller_maker" output="screen"></node>
 </launch>

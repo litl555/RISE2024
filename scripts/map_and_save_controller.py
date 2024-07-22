@@ -12,6 +12,18 @@ sys.path.append("/home/clearpath/Mahrooalg")
 class map_and_save():
     def __init__(self):
         self.r=resetter.Resetter()
+        try:
+            os.remove("/home/clearpath/jackal_ws/src/apriltag_mapping/ids.npy")
+        except:
+            print("didn't remove")
+        try:
+            os.remove("/home/clearpath/jackal_ws/src/apriltag_mapping/orientations.npy")
+        except:
+            print("didn't remove")
+        try:
+            os.remove("/home/clearpath/jackal_ws/src/apriltag_mapping/verts.npy")
+        except:
+            print("didn't remove")
     def run(self):
         #resetter program just uses PID to turn towards specified april tag and then makes resetter.finished true
         while self.r.finished==False:
@@ -26,9 +38,9 @@ class map_and_save():
             # gets the ordered vertices, ids, and orientations and saves them to numpy file
             vertex_coordinates,apriltag_ids,orientations=map_environment.get_vertices(x,y)
             print(vertex_coordinates)
-            np.save("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/verts.npy",np.array(vertex_coordinates))
-            np.save("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/ids.npy",np.array(apriltag_ids))
-            np.save("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/orientations.npy",np.array(orientations))
+            np.save("/home/clearpath/jackal_ws/src/apriltag_mapping/verts.npy",np.array(vertex_coordinates))
+            np.save("/home/clearpath/jackal_ws/src/apriltag_mapping/ids.npy",np.array(apriltag_ids))
+            np.save("/home/clearpath/jackal_ws/src/apriltag_mapping/orientations.npy",np.array(orientations))
 
             print(vertex_coordinates)
 if __name__=="__main__":

@@ -43,9 +43,9 @@ class controller_maker:
         np.savetxt("/home/clearpath/jackal_ws/src/creates_iros/csv/K_gains.csv", np.array(K_all), delimiter=",",fmt="%.4f")
     def run(self):
         try:
-            verts=np.load("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/verts.npy")
-            ids=np.load("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/ids.npy")
-            orientation=np.load("/home/clearpath/jackal_ws/src/apriltag_environment_mapper/orientations.npy",allow_pickle=True)
+            verts=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/verts.npy")
+            ids=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/ids.npy")
+            orientation=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/orientations.npy",allow_pickle=True)
             if verts.shape[0]!=(1):
         
                 rotation_dict=dict()
@@ -94,14 +94,14 @@ class controller_maker:
             '33':[[-1,0,0],[0,0,1],[0,1,0]]
         }):
         
-        with open("/home/clearpath/jackal_ws/src/creates_iros/csv/landmark_orientations.csv",'w+') as f:
-            w=csv.writer(f)
+        with open("/home/clearpath/jackal_ws/src/creates_iros/csv/landmark_orientations.csv",'w+') as f1:
+            w=csv.writer(f1)
             
             for i in range(tags.shape[0]):
                 for m in rotations[str(int(tags[i]))]:
                     m=[round(m[0]),round(m[1]),round(m[2])]
                     w.writerow(m)
-            f.close()
+            f1.close()
 
 if __name__=="__main__":
     rospy.init_node("controller_maker")
