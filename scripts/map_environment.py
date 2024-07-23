@@ -3,8 +3,12 @@ import copy
 from apriltag_ros.msg import AprilTagDetectionArray
 import tf2_ros
 import geometry_msgs.msg
+
 from geometry_msgs.msg import Twist
 import math
+import tf.transformations as tr
+import numpy as np
+
 import procrustes_analysis
 """
 General flow of code:
@@ -122,6 +126,7 @@ class TagCalculator():
     transform_list=[]
     vel=Twist()
     def __init__(self):
+        self.tag_rotations=[]
         self.transform_iter=[0,0,0,0,0,0,0,0,0]
         self.distance_tag_one=0
         self.br=tf2_ros.TransformBroadcaster()
@@ -139,6 +144,49 @@ class TagCalculator():
             i.header.stamp=rospy.Time.now()
             
             self.br.sendTransform(i)
+    def calc_score(self,rotation1,rotation2,r_inte):
+        procrsustes_sum=0.
+        
+        for i in range(len(rotation1)):
+            r2=rotation2[i]
+            r1=rotation1[i]
+            r1=tr.euler_from_quaternion([r1.x,r1.y,r1.z,r1.w])
+            
+            r2=[r2.x,r2.y,r2.z,r2.w]
+            angle_image=tr.quaternion_multiply(r_inte,r2)
+            procrsustes_sum+=(angle_image[0]-r1[0])**2+(angle_image[1]-r1[1])**2+(angle_image[2]-r1[2])**2
+        return procrsustes_sum
+    def average_rotation_modifier(self):
+        tag_index=0
+        
+        for rotation_lists in self.tag_rotations:
+            min_score=1000000
+            min_rotation=None
+            for i in range(len(rotation_lists[0])):
+                r_inter=rotation_lists[2][i]
+                print("RINTER")
+                print(rotation_lists[2])
+                #r_inter=tr.quaternion_matrix([r_inter.x,r_inter.y,r_inter.z,r_inter.w])
+                r2=rotation_lists[1]
+                print("r2 ................................")
+                print(r2)
+                #r2=tr.quaternion_matrix([r2.x,r2.y,r2.z,r2.w])
+                r1=rotation_lists[0]
+                print(r_inter.x)
+                print("r1 ........................................")
+                print(r1)
+                score=self.calc_score(r1,r2,[r_inter.x,r_inter.y,r_inter.z,r_inter.w])
+                if score<min_score:
+                    min_score=score
+                    min_rotation=r_inter
+                #1=tr.quaternion_matrix([r1.x,r1.y,r1.z,r1.w])
+                print("/////////////////// calculated array ///////////////////")
+
+                #print(tr.euler_from_quaternion(tr.quaternion_multiply(r_inter,[r2.x,r2.y,r2.z,r2.w])))
+                print("//////////////////// actual array /////////////////////")
+                #print(tr.euler_from_quaternion([r1.x,r1.y,r1.z,r1.w]))
+            TagCalculator.transform_list[tag_index].transform.rotation=min_rotation
+            tag_index+=1
     #Call this every loop to publish transforms from one tag to the adjacent
     def publish_adjacent_transforms(self,first_tag):
         
@@ -147,6 +195,7 @@ class TagCalculator():
         
         #If loop complete add the first tag's pose
         if b.get_all_tags()[len(b.get_all_tags())-1]==b.get_all_tags()[0] and Broadcaster.can_add_first and self.complete_loop==False:
+            self.average_rotation_modifier()
             print("first tag")
             print(str(b.get_all_tags()[0])+"_1")
             self.complete_loop=True
@@ -168,11 +217,27 @@ class TagCalculator():
         if not self.complete_loop:
             #keeps running average of the transforms from one tag to the other
             for i in range(len(Broadcaster.current_tags)-1):
+                itag=Broadcaster.current_tags[i]
+                itag1=Broadcaster.current_tags[i+1]
                 insert_index=b.get_all_tags().index(Broadcaster.current_tags[i])
                 self.transform_iter[insert_index]+=1
-                output=self.tf_buffer.lookup_transform(str(Broadcaster.current_tags[i]),str(Broadcaster.current_tags[i+1]),rospy.Time(0),rospy.Duration(10.00))
+                output=self.tf_buffer.lookup_transform(str(itag),str(Broadcaster.current_tags[i+1]),rospy.Time(0),rospy.Duration(10.00))
                 output.header.frame_id=output.header.frame_id+"_1"
                 output.child_frame_id=output.child_frame_id+"_1"
+                rotation1=self.tf_buffer.lookup_transform("robot",str(itag),rospy.Time(0),rospy.Duration(2)).transform.rotation
+                rotation2=self.tf_buffer.lookup_transform("robot",str(itag1),rospy.Time(0),rospy.Duration(2)).transform.rotation
+
+                try:
+                    index=b.get_all_tags().index(Broadcaster.current_tags[i])
+                    self.tag_rotations[index][0].append(rotation1)
+                    self.tag_rotations[index][1].append(rotation2)
+                    self.tag_rotations[index][2].append(output.transform.rotation)
+                    print("######################################################################################################")
+                    print("appending at "+str(b.get_all_tags().index(Broadcaster.current_tags[i])))
+                except Exception as e:
+                    print(e)
+                    self.tag_rotations.insert(b.get_all_tags().index(Broadcaster.current_tags[i]),[[rotation1],[rotation2],[output.transform.rotation]])
+               
                 if len(TagCalculator.transform_list)>insert_index:
                     output.transform=self.average_transform(TagCalculator.transform_list[insert_index],output,self.transform_iter[insert_index])
                     print("hi")

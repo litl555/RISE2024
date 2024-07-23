@@ -10,7 +10,7 @@ class Resetter():
         self.vel=Twist()
         self.left=None
         self.sub=rospy.Subscriber("/tag_detections",AprilTagDetectionArray,self.sub_callback,buff_size=10)
-        self.vel.angular.z=-.25
+        self.vel.angular.z=-.5
         self.p=.5
         self.finished=False
         

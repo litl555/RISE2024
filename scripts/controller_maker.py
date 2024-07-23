@@ -99,7 +99,8 @@ class controller_maker:
             
             for i in range(tags.shape[0]):
                 for m in rotations[str(int(tags[i]))]:
-                    m=[round(m[0]),round(m[1]),round(m[2])]
+                    m=[m[0],m[1],m[2]]
+                    #m=[round(m[0]),round(m[1]),round(m[2])]
                     w.writerow(m)
             f1.close()
 
