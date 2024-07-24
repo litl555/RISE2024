@@ -76,7 +76,7 @@ class controller_maker:
                 self.convert_k_values()
                 self.finish=True
         except Exception as e:
-            print(e)
+            pass
     def np_to_list(self,verts):
         l=[]
         for i in verts:
@@ -99,8 +99,8 @@ class controller_maker:
             
             for i in range(tags.shape[0]):
                 for m in rotations[str(int(tags[i]))]:
-                    m=[m[0],m[1],m[2]]
-                    #m=[round(m[0]),round(m[1]),round(m[2])]
+                    #m=[m[0],m[1],m[2]]
+                    m=[round(m[0]),round(m[1]),round(m[2])]
                     w.writerow(m)
             f1.close()
 

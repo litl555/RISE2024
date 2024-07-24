@@ -2,6 +2,7 @@ import rospy
 from geometry_msgs.msg import Twist
 from apriltag_ros.msg import AprilTagDetectionArray
 import math
+import copy
 #program that aligns to the specified april tag so I don't have 
 #to walk into the room everytime
 class Resetter():
@@ -11,7 +12,9 @@ class Resetter():
         self.left=None
         self.sub=rospy.Subscriber("/tag_detections",AprilTagDetectionArray,self.sub_callback,buff_size=10)
         self.vel.angular.z=-.5
-        self.p=.5
+        self.p=3
+        self.last_error=0.
+        self.d=.2
         self.finished=False
         
     
@@ -32,12 +35,16 @@ class Resetter():
                         t=msg.detections[i].pose.pose.pose.position
                         x,y,z=self.euler_from_quaternion(r.x,r.y,r.z,r.w)
                         print(y)
-                        self.vel.angular.z=-self.p*y
+                        self.vel.angular.z=self.PID(y)
                         if abs(y)<.25*math.pi/180.0:
                             self.vel.angular.z=0.0
                             self.finished=True
                             self.sub.unregister()
-    
+    def PID(self, error):
+        output=-error*self.p-self.d*(error-self.last_error)
+        self.last_error=error
+        return max(min(output,.5),-.5)
+        
     def euler_from_quaternion(self,x, y, z, w):
     
         t0 = +2.0 * (w * x + y * z)

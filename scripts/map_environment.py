@@ -72,7 +72,7 @@ class Broadcaster():
                 t.rotation.w=q.w
                 self.first_tag=t
                 self.is_first=False
-                TagCalculator.vel.angular.z=-.25
+                TagCalculator.vel.angular.z=-.1
         else:
             Broadcaster.current_tags=[]
         if len(self.all_tags)!=0:
@@ -151,9 +151,15 @@ class TagCalculator():
             r2=rotation2[i]
             r1=rotation1[i]
             r1=tr.euler_from_quaternion([r1.x,r1.y,r1.z,r1.w])
-            
             r2=[r2.x,r2.y,r2.z,r2.w]
-            angle_image=tr.quaternion_multiply(r_inte,r2)
+            print("r2")
+            print(tr.euler_from_quaternion(r2))
+            print("r_inter")
+            print(tr.euler_from_quaternion(r_inte))
+            print("r1")
+            print(r1)
+            angle_image=np.matmul(tr.quaternion_matrix(r_inte),tr.quaternion_matrix(r2))
+            angle_image=tr.euler_from_matrix(angle_image)
             procrsustes_sum+=(angle_image[0]-r1[0])**2+(angle_image[1]-r1[1])**2+(angle_image[2]-r1[2])**2
         return procrsustes_sum
     def average_rotation_modifier(self):
@@ -164,27 +170,12 @@ class TagCalculator():
             min_rotation=None
             for i in range(len(rotation_lists[0])):
                 r_inter=rotation_lists[2][i]
-                print("RINTER")
-                print(rotation_lists[2])
-                #r_inter=tr.quaternion_matrix([r_inter.x,r_inter.y,r_inter.z,r_inter.w])
                 r2=rotation_lists[1]
-                print("r2 ................................")
-                print(r2)
-                #r2=tr.quaternion_matrix([r2.x,r2.y,r2.z,r2.w])
                 r1=rotation_lists[0]
-                print(r_inter.x)
-                print("r1 ........................................")
-                print(r1)
                 score=self.calc_score(r1,r2,[r_inter.x,r_inter.y,r_inter.z,r_inter.w])
                 if score<min_score:
                     min_score=score
                     min_rotation=r_inter
-                #1=tr.quaternion_matrix([r1.x,r1.y,r1.z,r1.w])
-                print("/////////////////// calculated array ///////////////////")
-
-                #print(tr.euler_from_quaternion(tr.quaternion_multiply(r_inter,[r2.x,r2.y,r2.z,r2.w])))
-                print("//////////////////// actual array /////////////////////")
-                #print(tr.euler_from_quaternion([r1.x,r1.y,r1.z,r1.w]))
             TagCalculator.transform_list[tag_index].transform.rotation=min_rotation
             tag_index+=1
     #Call this every loop to publish transforms from one tag to the adjacent
@@ -232,11 +223,11 @@ class TagCalculator():
                     self.tag_rotations[index][0].append(rotation1)
                     self.tag_rotations[index][1].append(rotation2)
                     self.tag_rotations[index][2].append(output.transform.rotation)
-                    print("######################################################################################################")
-                    print("appending at "+str(b.get_all_tags().index(Broadcaster.current_tags[i])))
+                    #print("######################################################################################################")
+                    #print("appending at "+str(b.get_all_tags().index(Broadcaster.current_tags[i])))
                 except Exception as e:
                     print(e)
-                    self.tag_rotations.insert(b.get_all_tags().index(Broadcaster.current_tags[i]),[[rotation1],[rotation2],[output.transform.rotation]])
+                    self.tag_rotations.insert(b.get_all_tags().index(itag),[[rotation1],[rotation2],[output.transform.rotation]])
                
                 if len(TagCalculator.transform_list)>insert_index:
                     output.transform=self.average_transform(TagCalculator.transform_list[insert_index],output,self.transform_iter[insert_index])
