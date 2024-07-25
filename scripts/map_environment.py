@@ -152,12 +152,12 @@ class TagCalculator():
             r1=rotation1[i]
             r1=tr.euler_from_quaternion([r1.x,r1.y,r1.z,r1.w])
             r2=[r2.x,r2.y,r2.z,r2.w]
-            print("r2")
-            print(tr.euler_from_quaternion(r2))
-            print("r_inter")
-            print(tr.euler_from_quaternion(r_inte))
-            print("r1")
-            print(r1)
+            #print("r2")
+            #print(tr.euler_from_quaternion(r2))
+            #print("r_inter")
+            #print(tr.euler_from_quaternion(r_inte))
+            #print("r1")
+            #print(r1)
             angle_image=np.matmul(tr.quaternion_matrix(r_inte),tr.quaternion_matrix(r2))
             angle_image=tr.euler_from_matrix(angle_image)
             procrsustes_sum+=(angle_image[0]-r1[0])**2+(angle_image[1]-r1[1])**2+(angle_image[2]-r1[2])**2
@@ -178,6 +178,9 @@ class TagCalculator():
                     min_rotation=r_inter
             TagCalculator.transform_list[tag_index].transform.rotation=min_rotation
             tag_index+=1
+        print("################## TRANSFORM LIST ####################")
+        print(TagCalculator.transform_list)
+        
     #Call this every loop to publish transforms from one tag to the adjacent
     def publish_adjacent_transforms(self,first_tag):
         
@@ -226,12 +229,11 @@ class TagCalculator():
                     #print("######################################################################################################")
                     #print("appending at "+str(b.get_all_tags().index(Broadcaster.current_tags[i])))
                 except Exception as e:
-                    print(e)
                     self.tag_rotations.insert(b.get_all_tags().index(itag),[[rotation1],[rotation2],[output.transform.rotation]])
                
                 if len(TagCalculator.transform_list)>insert_index:
                     output.transform=self.average_transform(TagCalculator.transform_list[insert_index],output,self.transform_iter[insert_index])
-                    print("hi")
+                    
                 if len(TagCalculator.transform_list)>insert_index:
                     TagCalculator.transform_list.pop(insert_index)
                 

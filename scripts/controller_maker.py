@@ -72,8 +72,10 @@ class controller_maker:
                         index+=1
                     f.close()
                 self.calculate_rotation_matrices(ids,rotation_dict)
+                print("generating controller")
                 control_cal.control_cal(np.array(self.np_to_list(verts)))
                 self.convert_k_values()
+                print("finished")
                 self.finish=True
         except Exception as e:
             pass

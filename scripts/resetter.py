@@ -16,6 +16,7 @@ class Resetter():
         self.last_error=0.
         self.d=.2
         self.finished=False
+        print("resetting position")
         
     
     def sub_callback(self,msg):
@@ -28,17 +29,15 @@ class Resetter():
                     self.left=18
             if self.left is not False:
                 for i in range(len(msg.detections)):
-                    print(msg.detections[i].id)
                     if msg.detections[i].id[0]==self.left:
-                        print("is id")
                         r=msg.detections[i].pose.pose.pose.orientation
                         t=msg.detections[i].pose.pose.pose.position
                         x,y,z=self.euler_from_quaternion(r.x,r.y,r.z,r.w)
-                        print(y)
                         self.vel.angular.z=self.PID(y)
                         if abs(y)<.25*math.pi/180.0:
                             self.vel.angular.z=0.0
                             self.finished=True
+                            print("aligned")
                             self.sub.unregister()
     def PID(self, error):
         output=-error*self.p-self.d*(error-self.last_error)
