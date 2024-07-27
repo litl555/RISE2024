@@ -12,9 +12,12 @@ class Resetter():
         self.left=None
         self.sub=rospy.Subscriber("/tag_detections",AprilTagDetectionArray,self.sub_callback,buff_size=10)
         self.vel.angular.z=-.5
-        self.p=3
+        self.p=4
+        self.i=0.0
         self.last_error=0.
-        self.d=.2
+        self.d=-4
+        self.integral=[]
+        self.buffer=0
         self.finished=False
         print("resetting position")
         
@@ -34,16 +37,26 @@ class Resetter():
                         t=msg.detections[i].pose.pose.pose.position
                         x,y,z=self.euler_from_quaternion(r.x,r.y,r.z,r.w)
                         self.vel.angular.z=self.PID(y)
-                        if abs(y)<.25*math.pi/180.0:
+                        if abs(y)<1*math.pi/180.0:
+                            self.buffer+=1
+                        else:
+                            self.buffer=0
+                        if self.buffer>15:
                             self.vel.angular.z=0.0
+                            
                             self.finished=True
                             print("aligned")
                             self.sub.unregister()
     def PID(self, error):
-        output=-error*self.p-self.d*(error-self.last_error)
+
+        output=-error*self.p-self.d*(error-self.last_error)-self.i*sum(self.integral)
         self.last_error=error
+        self.integral.append(error)
+        if len(self.integral)>100:
+            self.integral.pop(0)
+
         return max(min(output,.5),-.5)
-        
+    
     def euler_from_quaternion(self,x, y, z, w):
     
         t0 = +2.0 * (w * x + y * z)

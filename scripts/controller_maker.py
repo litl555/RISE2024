@@ -8,9 +8,10 @@ import control_cal
 from scipy.spatial.transform import Rotation as R
 import csv
 import numpy as np
+from optimize_vertices import optimize_verts
 
 # Generates the controller gains based on map
-# RUNS PYTHON3.8
+# RUNS PYTHON3.8 
 class controller_maker:
     verts=[]
     def __init__(self):
@@ -43,34 +44,38 @@ class controller_maker:
         np.savetxt("/home/clearpath/jackal_ws/src/creates_iros/csv/K_gains.csv", np.array(K_all), delimiter=",",fmt="%.4f")
     def run(self):
         try:
-            verts=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/verts.npy")
+            #verts=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/verts.npy")
             ids=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/ids.npy")
             orientation=np.load("/home/clearpath/jackal_ws/src/apriltag_mapping/orientations.npy",allow_pickle=True)
-            if verts.shape[0]!=(1):
-        
-                rotation_dict=dict()
+            
+            verts_optimizer=optimize_verts()
+           
+            verts,_=verts_optimizer.get_ordered_optimized_vertices([.9,0.0,.99])
+            
+    
+            rotation_dict=dict()
 
-                with open("/home/clearpath/jackal_ws/src/creates_iros/csv/landmark_positions.csv",'w+') as f:
-                    writer=csv.writer(f)
-                    print("hi")
-                    verts=list(verts)
-                    index=0
-                    rotation_dict=dict()
-                    for i in verts:
-                        l=orientation[index]
-                        r=R.from_quat([l.x,l.y,l.z,l.w])
-                        print(int(ids[index]))
-                        l=r.as_matrix()
-                        #switch z and y axes and make z axis negative
-                        mat_matrix=[l[0],l[2],[-l[1][0],-l[1][1],-l[1][2]]]
-                        rotation_dict[str(int(ids[index]))]=mat_matrix
-                        print(mat_matrix)
-                        formatted=list(i)
-                        formatted.insert(0,int(ids[index]))
-                        formatted.append(0)
-                        writer.writerow(formatted)
-                        index+=1
-                    f.close()
+            with open("/home/clearpath/jackal_ws/src/creates_iros/csv/landmark_positions.csv",'w+') as f:
+                writer=csv.writer(f)
+                print("hi")
+                verts=list(verts)
+                index=0
+                rotation_dict=dict()
+                for i in verts:
+                    l=orientation[index]
+                    r=R.from_quat([l.x,l.y,l.z,l.w])
+                    print(int(ids[index]))
+                    l=r.as_matrix()
+                    #switch z and y axes and make z axis negative
+                    mat_matrix=[l[0],l[2],[-l[1][0],-l[1][1],-l[1][2]]]
+                    rotation_dict[str(int(ids[index]))]=mat_matrix
+                    print(mat_matrix)
+                    formatted=[i[0],i[2]]
+                    formatted.insert(0,int(ids[index]))
+                    formatted.append(0)
+                    writer.writerow(formatted)
+                    index+=1
+                f.close()
                 self.calculate_rotation_matrices(ids,rotation_dict)
                 print("generating controller")
                 control_cal.control_cal(np.array(self.np_to_list(verts)))
@@ -78,12 +83,12 @@ class controller_maker:
                 print("finished")
                 self.finish=True
         except Exception as e:
-            pass
+            print(e)
     def np_to_list(self,verts):
         l=[]
         for i in verts:
             print(i[0])
-            l.append((i[0],i[1]))
+            l.append((i[0],i[2]))
         print(l)
         return(l)
     #save rotation matrices to orientation file based on given dictionary

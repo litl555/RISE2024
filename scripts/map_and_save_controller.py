@@ -26,7 +26,7 @@ class map_and_save():
             print("didn't remove")
     def run(self):
         #resetter program just uses PID to turn towards specified april tag and then makes resetter.finished true
-        while self.r.finished==False:
+        while self.r.finished==False and not rospy.is_shutdown():
             self.r.pub.publish(self.r.vel)
         print("starting mapping")
         #Start mapping

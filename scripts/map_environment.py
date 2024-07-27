@@ -23,7 +23,9 @@ GlobalPositions takes the transforms between tags and uses them to calculate eac
 position in the world frame.
 """
 # Takes AprilTags and broadcasts them as transforms relative to camera
+SPEED=.1
 class Broadcaster():
+    
     current_tags=[] # Sorted list of every tag that is in camera view
     
     can_add_first=False
@@ -43,6 +45,9 @@ class Broadcaster():
         return self.all_tags
     # Processes tags and broadcasts them as transforms relative to robot
     def sub_callback(self,msg):
+        #print(self.current_tags)
+        #print("///")
+        #print(self.all_tags)
         if msg.detections:
             
             
@@ -50,14 +55,32 @@ class Broadcaster():
             # Add currently viewed ids to current_tags and publish
             Broadcaster.current_tags=[]
             for i in range(len(msg.detections)):
-                
-                if d[i].id[0] not in self.all_tags:
-                    self.all_tags.append(d[i].id[0])
-                try:
-                    self.stamp_tag(d[i],d[i].id[0])
-                except rospy.ROSException:
-                    continue
-                Broadcaster.current_tags.append(d[i].id[0])
+
+                if len(self.all_tags)==0:
+                    if str(d[i].id[0]) not in self.all_tags:
+                        
+                        self.all_tags.append(str(d[i].id[0]))
+                    try:
+                        self.stamp_tag(d[i],d[i].id[0])
+                    except rospy.ROSException:
+                        pass
+                else:
+                    if self.all_tags[0]==str(d[i].id[0]) and Broadcaster.can_add_first:
+                        if str(d[i].id[0])+".secondpass" not in self.all_tags:
+                            self.all_tags.append(str(d[i].id[0])+".secondpass")
+                        try:
+                            self.stamp_tag(d[i],str(d[i].id[0])+".secondpass")
+                        except:
+                            pass
+                    else:
+                        if str(d[i].id[0]) not in self.all_tags:
+                            
+                            self.all_tags.append(str(d[i].id[0]))
+                        try:
+                            self.stamp_tag(d[i],d[i].id[0])
+                        except rospy.ROSException:
+                            pass
+                Broadcaster.current_tags.append(str(d[i].id[0]))
             #saves the pose of the first tag so it can be used as the world position
             if self.is_first:
                 t=geometry_msgs.msg.Transform()
@@ -72,7 +95,8 @@ class Broadcaster():
                 t.rotation.w=q.w
                 self.first_tag=t
                 self.is_first=False
-                TagCalculator.vel.angular.z=-.1
+                rospy.sleep(rospy.Duration(5))
+                TagCalculator.vel.angular.z=-SPEED
         else:
             Broadcaster.current_tags=[]
         if len(self.all_tags)!=0:
@@ -81,7 +105,10 @@ class Broadcaster():
                 if self.first_buffer>=10:
                     Broadcaster.can_add_first=True
                 if self.all_tags[0] in Broadcaster.current_tags and Broadcaster.can_add_first:
-                    self.all_tags.append(d[len(d)-1].id[0])
+                    
+                    self.current_tags[self.current_tags.index(str(d[len(d)-1].id[0]))]=str(d[len(d)-1].id[0])+".secondpass"
+                    if len(self.current_tags)<=1:
+                        TagCalculator.complete_loop=True
     
     def get_first_tag(self):
         return self.first_tag
@@ -125,12 +152,13 @@ class Broadcaster():
 class TagCalculator():
     transform_list=[]
     vel=Twist()
+    complete_loop=False
     def __init__(self):
         self.tag_rotations=[]
+        self.complete_loop_last=False
         self.transform_iter=[0,0,0,0,0,0,0,0,0]
         self.distance_tag_one=0
         self.br=tf2_ros.TransformBroadcaster()
-        self.complete_loop=False
         self.pub=rospy.Publisher("/cmd_vel",Twist,queue_size=10)
         
         
@@ -178,8 +206,8 @@ class TagCalculator():
                     min_rotation=r_inter
             TagCalculator.transform_list[tag_index].transform.rotation=min_rotation
             tag_index+=1
-        print("################## TRANSFORM LIST ####################")
-        print(TagCalculator.transform_list)
+        #print("################## TRANSFORM LIST ####################")
+        #print(TagCalculator.transform_list)
         
     #Call this every loop to publish transforms from one tag to the adjacent
     def publish_adjacent_transforms(self,first_tag):
@@ -188,11 +216,11 @@ class TagCalculator():
          #   TagCalculator.vel.angular.z=-.75
         
         #If loop complete add the first tag's pose
-        if b.get_all_tags()[len(b.get_all_tags())-1]==b.get_all_tags()[0] and Broadcaster.can_add_first and self.complete_loop==False:
+        if self.complete_loop_last==False and TagCalculator.complete_loop==True:
             self.average_rotation_modifier()
-            print("first tag")
-            print(str(b.get_all_tags()[0])+"_1")
-            self.complete_loop=True
+            #print("first tag")
+            #print(str(b.get_all_tags()[0])+"_1")
+            TagCalculator.complete_loop=True
             t=geometry_msgs.msg.TransformStamped()
             tr=geometry_msgs.msg.Transform()
             tr=first_tag
@@ -201,14 +229,15 @@ class TagCalculator():
             t.header.frame_id="world"
             t.header.stamp=rospy.Time.now()
             TagCalculator.transform_list.append(t)
+        self.complete_loop_last=TagCalculator.complete_loop
         #Constantly publishes the transforms
-        if self.complete_loop:
+        if TagCalculator.complete_loop:
             self.publish_transform_list()
             TagCalculator.vel.angular.z=0.0
             
             
         
-        if not self.complete_loop:
+        if not TagCalculator.complete_loop:
             #keeps running average of the transforms from one tag to the other
             for i in range(len(Broadcaster.current_tags)-1):
                 itag=Broadcaster.current_tags[i]
@@ -262,15 +291,14 @@ class GlobalPositions():
     def get_global_positions(self):
         
         global_pos=[]
-        for i in range(len(b.get_all_tags())-1):
-            if b.get_all_tags()[i]!=b.get_all_tags()[0] or i==0:
-                out=self.tf_buffer1.lookup_transform("world",str(b.get_all_tags()[i])+"_1",rospy.Time(0),rospy.Duration(3.0))
+        for i in range(len(b.get_all_tags())):
+            #print(str(b.get_all_tags()[i])+"_1")
+            out=self.tf_buffer1.lookup_transform("world",str(b.get_all_tags()[i])+"_1",rospy.Time(0),rospy.Duration(3.0))
             
             
                 
-                global_pos.append(out)
-            else:
-                break
+            global_pos.append(out)
+            
         #publishes global positions for visualization in rviz
         
         for i in global_pos:
@@ -299,7 +327,7 @@ def get_vertices(x,y):
         if len(b.get_all_tags()) is not 0:
             c.publish_adjacent_transforms(b.get_first_tag())
             c.pub.publish(TagCalculator.vel)
-            if c.complete_loop:
+            if TagCalculator.complete_loop:
                 #needs to buffer for the transform listeners
                 if buffer<2:
                     buffer+=1
@@ -308,7 +336,19 @@ def get_vertices(x,y):
                     break   
         r.sleep()
     #procrustes analysis
-    global_positions=pr.get_ordered_tags(global_positions)
+    np.save("/home/clearpath/jackal_ws/src/apriltag_mapping/verts_viewing_order.npy",[[global_positions[i].transform.translation.x,global_positions[i].transform.translation.y,global_positions[i].transform.translation.z] for i in range(len(global_positions))])
+    np.save("/home/clearpath/jackal_ws/src/apriltag_mapping/ids_viewing_order.npy",b.all_tags)
+    gp=None
+    index_pop=0
+    for index,x in enumerate(global_positions):
+        if x.child_frame_id==b.get_all_tags()[0]+".secondpass_1_1":
+            gp=x
+            index_pop=index
+            break
+    print("procrustes input")
+    global_positions.pop(index_pop)
+    global_positions=pr.get_ordered_tags(global_positions[:len(global_positions)])
+    
     
     vertices=[]
     orientations=[]
